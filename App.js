@@ -1,18 +1,29 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   Pressable,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { db } from './firebase';
+import {
+  collection,
+  onSnapshot,
+  doc,
+  setDoc,
+  deleteDoc,
+  query,
+  where,
+} from 'firebase/firestore';
 
 const formatDateTime = (date) => {
   return date.toLocaleString(undefined, {
@@ -191,9 +202,12 @@ const themes = {
   },
 };
 
+const TASKS_COLLECTION = 'tasks';
+
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [deletedTasks, setDeletedTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tasks');
   const [isDark, setIsDark] = useState(true);
   const [showAddTaskScreen, setShowAddTaskScreen] = useState(false);
@@ -208,39 +222,56 @@ export default function App() {
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const theme = themes[isDark ? 'dark' : 'light'];
 
-  const addTask = () => {
+  useEffect(() => {
+    const tasksRef = collection(db, TASKS_COLLECTION);
+    const activeQuery = query(tasksRef, where('deleted', '==', false));
+    const deletedQuery = query(tasksRef, where('deleted', '==', true));
+
+    const unsubActive = onSnapshot(activeQuery, (snapshot) => {
+      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setTasks(data);
+      setLoading(false);
+    });
+
+    const unsubDeleted = onSnapshot(deletedQuery, (snapshot) => {
+      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setDeletedTasks(data);
+    });
+
+    return () => {
+      unsubActive();
+      unsubDeleted();
+    };
+  }, []);
+
+  const addTask = async () => {
     const trimmed = addTaskForm.title.trim();
-    if (trimmed) {
+    if (!trimmed) return;
+
+    const taskData = {
+      title: trimmed,
+      done: false,
+      importance: addTaskForm.importance,
+      createdAt: addTaskForm.createdAt.toISOString(),
+      deadline: addTaskForm.deadline.toISOString(),
+      deleted: false,
+    };
+
+    try {
       if (editingTaskId) {
-        setTasks(
-          tasks.map((t) =>
-            t.id === editingTaskId
-              ? {
-                  ...t,
-                  title: trimmed,
-                  importance: addTaskForm.importance,
-                  createdAt: addTaskForm.createdAt.toISOString(),
-                  deadline: addTaskForm.deadline.toISOString(),
-                }
-              : t
-          )
-        );
+        await setDoc(doc(db, TASKS_COLLECTION, editingTaskId), {
+          ...taskData,
+          done: tasks.find((t) => t.id === editingTaskId)?.done ?? false,
+        }, { merge: true });
       } else {
-        setTasks([
-          ...tasks,
-          {
-            id: Date.now().toString(),
-            title: trimmed,
-            done: false,
-            importance: addTaskForm.importance,
-            createdAt: addTaskForm.createdAt.toISOString(),
-            deadline: addTaskForm.deadline.toISOString(),
-          },
-        ]);
+        const id = Date.now().toString();
+        await setDoc(doc(db, TASKS_COLLECTION, id), { ...taskData, id }, { merge: true });
       }
       resetAddTaskForm();
       setShowAddTaskScreen(false);
       setEditingTaskId(null);
+    } catch (err) {
+      console.error('Firebase add/update task error:', err);
     }
   };
 
@@ -270,33 +301,47 @@ export default function App() {
     setEditingTaskId(null);
   };
 
-  const toggleDone = (id) => {
-    setTasks(
-      tasks.map((task) =>
-        task.id === id ? { ...task, done: !task.done } : task
-      )
-    );
-  };
-
-  const removeTask = (id) => {
+  const toggleDone = async (id) => {
     const task = tasks.find((t) => t.id === id);
-    if (task) {
-      setTasks(tasks.filter((t) => t.id !== id));
-      setDeletedTasks([
-        { ...task, deletedAt: Date.now() },
-        ...deletedTasks,
-      ]);
+    if (!task) return;
+    try {
+      await setDoc(doc(db, TASKS_COLLECTION, id), { done: !task.done }, { merge: true });
+    } catch (err) {
+      console.error('Firebase toggle done error:', err);
     }
   };
 
-  const restoreTask = (task) => {
-    const { deletedAt, ...restoredTask } = task;
-    setDeletedTasks(deletedTasks.filter((t) => t.id !== task.id));
-    setTasks([...tasks, restoredTask]);
+  const removeTask = async (id) => {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    try {
+      await setDoc(doc(db, TASKS_COLLECTION, id), {
+        deleted: true,
+        deletedAt: Date.now(),
+      }, { merge: true });
+    } catch (err) {
+      console.error('Firebase remove task error:', err);
+    }
   };
 
-  const permanentlyRemoveTask = (id) => {
-    setDeletedTasks(deletedTasks.filter((t) => t.id !== id));
+  const restoreTask = async (task) => {
+    const { deletedAt, deleted, ...restoredTask } = task;
+    try {
+      await setDoc(doc(db, TASKS_COLLECTION, task.id), {
+        ...restoredTask,
+        deleted: false,
+      }, { merge: true });
+    } catch (err) {
+      console.error('Firebase restore task error:', err);
+    }
+  };
+
+  const permanentlyRemoveTask = async (id) => {
+    try {
+      await deleteDoc(doc(db, TASKS_COLLECTION, id));
+    } catch (err) {
+      console.error('Firebase permanent delete error:', err);
+    }
   };
 
   const renderTask = ({ item }) => {
@@ -479,6 +524,11 @@ export default function App() {
           formatDateTime={formatDateTime}
           isEdit={!!editingTaskId}
         />
+      ) : activeTab === 'tasks' && loading ? (
+        <View style={[styles.list, styles.loadingContainer]}>
+          <ActivityIndicator size="large" color={theme.accent} />
+          <Text style={[styles.emptyText, themedStyles.emptyText]}>Loading tasks...</Text>
+        </View>
       ) : activeTab === 'tasks' ? (
         <FlatList
           data={tasks}
@@ -763,6 +813,11 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
   },
   listContent: {
     padding: 16,
