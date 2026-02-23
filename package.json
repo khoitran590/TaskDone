@@ -11,6 +11,8 @@
   "dependencies": {
     "@react-native-community/datetimepicker": "8.4.4",
     "expo": "~54.0.33",
+    "expo-blur": "~14.0.1",
+    "expo-linear-gradient": "~14.0.2",
     "expo-status-bar": "~3.0.9",
     "firebase": "^11.0.0",
     "react": "19.1.0",

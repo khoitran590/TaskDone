@@ -11,6 +11,8 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,7 +61,7 @@ function AddTaskScreen({
 }) {
   return (
     <ScrollView
-      style={[styles.addTaskScreen, themedStyles.container]}
+      style={styles.addTaskScreen}
       contentContainerStyle={styles.addTaskContent}
       keyboardShouldPersistTaps="handled"
     >
@@ -76,7 +78,7 @@ function AddTaskScreen({
         Task title
       </Text>
       <TextInput
-        style={[styles.addTaskInput, themedStyles.input]}
+        style={[styles.addTaskInput, { backgroundColor: theme.glassBg, color: theme.text, borderColor: theme.glassBorder }]}
         placeholder="Enter task title..."
         placeholderTextColor={theme.textMuted}
         value={form.title}
@@ -93,7 +95,7 @@ function AddTaskScreen({
             onPress={() => setForm({ ...form, importance: key })}
             style={[
               styles.importanceBtn,
-              { backgroundColor: color },
+              { backgroundColor: form.importance === key ? color : theme.glassBg, borderColor: theme.glassBorder },
               form.importance === key && styles.importanceBtnSelected,
             ]}
           >
@@ -115,7 +117,7 @@ function AddTaskScreen({
       </Text>
       <Pressable
         onPress={() => setShowCreatedPicker(true)}
-        style={[styles.dateTimeBtn, themedStyles.header]}
+        style={[styles.dateTimeBtn, { backgroundColor: theme.glassBg, borderColor: theme.glassBorder }]}
       >
         <Ionicons name="calendar-outline" size={20} color={theme.accentSoft} />
         <Text style={[styles.dateTimeText, themedStyles.dateTimeText]}>
@@ -140,7 +142,7 @@ function AddTaskScreen({
       </Text>
       <Pressable
         onPress={() => setShowDeadlinePicker(true)}
-        style={[styles.dateTimeBtn, themedStyles.header]}
+        style={[styles.dateTimeBtn, { backgroundColor: theme.glassBg, borderColor: theme.glassBorder }]}
       >
         <Ionicons name="flag-outline" size={20} color={theme.accentSoft} />
         <Text style={[styles.dateTimeText, themedStyles.dateTimeText]}>
@@ -163,7 +165,7 @@ function AddTaskScreen({
       <View style={styles.addTaskActions}>
         <Pressable
           onPress={onCancel}
-          style={[styles.addTaskCancelBtn, themedStyles.header]}
+          style={[styles.addTaskCancelBtn, { backgroundColor: theme.glassBg, borderColor: theme.glassBorder }]}
         >
           <Text style={[styles.addTaskCancelText, themedStyles.subtitle]}>
             Cancel
@@ -171,10 +173,16 @@ function AddTaskScreen({
         </Pressable>
         <Pressable
           onPress={onSave}
-          style={[styles.addTaskSaveBtn, !form.title.trim() && styles.addBtnDisabled]}
+          style={[
+            styles.addTaskSaveBtn,
+            {
+              backgroundColor: !form.title.trim() ? theme.glassHighlight : theme.accent,
+              borderColor: theme.glassBorder,
+            },
+          ]}
           disabled={!form.title.trim()}
         >
-          <Text style={styles.addTaskSaveText}>
+          <Text style={[styles.addTaskSaveText, { color: form.title.trim() ? '#fff' : theme.textMuted }]}>
             {isEdit ? 'Update Task' : 'Save Task'}
           </Text>
         </Pressable>
@@ -185,20 +193,24 @@ function AddTaskScreen({
 
 const themes = {
   dark: {
-    bg: '#1a1a2e',
-    card: '#16213e',
+    gradient: ['#0f0c29', '#302b63', '#24243e'],
+    glassBg: 'rgba(255,255,255,0.08)',
+    glassBorder: 'rgba(255,255,255,0.2)',
+    glassHighlight: 'rgba(255,255,255,0.15)',
     text: '#fff',
-    textMuted: '#95a5a6',
-    accent: '#7BAFD4',
-    accentSoft: '#A8D8EA',
+    textMuted: 'rgba(255,255,255,0.65)',
+    accent: '#8B9DC3',
+    accentSoft: '#B8C5E0',
   },
   light: {
-    bg: '#f5f6fa',
-    card: '#fff',
-    text: '#2d3436',
-    textMuted: '#636e72',
-    accent: '#7BAFD4',
-    accentSoft: '#89CFF0',
+    gradient: ['#E8EAF6', '#C5CAE9', '#E1BEE7'],
+    glassBg: 'rgba(255,255,255,0.6)',
+    glassBorder: 'rgba(255,255,255,0.8)',
+    glassHighlight: 'rgba(255,255,255,0.4)',
+    text: '#1a1a2e',
+    textMuted: 'rgba(0,0,0,0.55)',
+    accent: '#5C6BC0',
+    accentSoft: '#7986CB',
   },
 };
 
@@ -353,7 +365,11 @@ export default function App() {
     <View
       style={[
         styles.taskRow,
-        { backgroundColor: theme.card, borderLeftColor: importanceColor },
+        {
+          backgroundColor: theme.glassBg,
+          borderLeftColor: importanceColor,
+          borderColor: theme.glassBorder,
+        },
         item.done && styles.taskRowDone,
       ]}
     >
@@ -420,17 +436,26 @@ export default function App() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, themedStyles.container]}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      <LinearGradient
+        colors={theme.gradient}
+        style={StyleSheet.absoluteFill}
+      />
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <View style={[styles.header, themedStyles.header]}>
+      <BlurView
+        intensity={60}
+        tint={isDark ? 'dark' : 'light'}
+        style={[styles.header, { overflow: 'hidden' }]}
+        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+      >
         <View style={styles.headerTop}>
           <Text style={[styles.title, themedStyles.title]}>TaskDone</Text>
           <Pressable
             onPress={() => setIsDark(!isDark)}
-            style={[styles.themeToggle, themedStyles.themeToggle]}
+            style={[styles.themeToggle, { backgroundColor: theme.glassBg, borderColor: theme.glassBorder }]}
           >
             <Ionicons
               name={isDark ? 'sunny' : 'moon'}
@@ -448,7 +473,10 @@ export default function App() {
           <Pressable
             style={[
               styles.tab,
-              activeTab === 'tasks' && [styles.tabActive, themedStyles.tabActive],
+              {
+                backgroundColor: activeTab === 'tasks' ? theme.glassHighlight : 'transparent',
+                borderColor: theme.glassBorder,
+              },
             ]}
             onPress={() => setActiveTab('tasks')}
           >
@@ -470,7 +498,10 @@ export default function App() {
           <Pressable
             style={[
               styles.tab,
-              activeTab === 'deleted' && [styles.tabActive, themedStyles.tabActive],
+              {
+                backgroundColor: activeTab === 'deleted' ? theme.glassHighlight : 'transparent',
+                borderColor: theme.glassBorder,
+              },
             ]}
             onPress={() => setActiveTab('deleted')}
           >
@@ -490,19 +521,19 @@ export default function App() {
             </Text>
           </Pressable>
         </View>
-      </View>
+      </BlurView>
 
       {activeTab === 'tasks' && !showAddTaskScreen && (
-        <View style={[styles.addBtnRow, themedStyles.header]}>
+        <View style={styles.addBtnRow}>
           <Pressable
-            style={styles.addBtnLarge}
+            style={[styles.addBtnLarge, { backgroundColor: theme.glassBg, borderColor: theme.glassBorder }]}
             onPress={() => {
               setEditingTaskId(null);
               resetAddTaskForm();
               setShowAddTaskScreen(true);
             }}
           >
-            <Ionicons name="add" size={36} color="#fff" />
+            <Ionicons name="add" size={36} color={theme.accentSoft} />
           </Pressable>
         </View>
       )}
@@ -534,7 +565,7 @@ export default function App() {
           data={tasks}
           renderItem={renderTask}
           keyExtractor={(item) => item.id}
-          style={[styles.list, themedStyles.list]}
+          style={styles.list}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <Text style={[styles.emptyText, themedStyles.emptyText]}>
@@ -553,7 +584,11 @@ export default function App() {
             <View
               style={[
                 styles.deletedRow,
-                { backgroundColor: theme.card, borderLeftColor: importanceColor },
+                {
+                  backgroundColor: theme.glassBg,
+                  borderLeftColor: importanceColor,
+                  borderColor: theme.glassBorder,
+                },
               ]}
             >
               <Ionicons name="trash-outline" size={22} color={theme.textMuted} />
@@ -587,7 +622,7 @@ export default function App() {
           );
           }}
           keyExtractor={(item) => item.id}
-          style={[styles.list, themedStyles.list]}
+          style={styles.list}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <Text style={[styles.emptyText, themedStyles.emptyText]}>
@@ -602,16 +637,10 @@ export default function App() {
 
 function getThemedStyles(theme) {
   return StyleSheet.create({
-    container: { backgroundColor: theme.bg },
-    header: { backgroundColor: theme.card },
-    title: { color: theme.accent },
-    subtitle: { color: theme.accentSoft },
-    tabActive: { backgroundColor: `${theme.accent}33` },
-    tabText: { color: theme.accentSoft },
-    tabTextActive: { color: theme.accent },
-    themeToggle: { backgroundColor: `${theme.accent}22` },
-    input: { backgroundColor: theme.bg, color: theme.text },
-    list: { backgroundColor: theme.bg },
+    title: { color: theme.accentSoft },
+    subtitle: { color: theme.textMuted },
+    tabText: { color: theme.textMuted },
+    tabTextActive: { color: theme.accentSoft },
     dateTimeText: { color: theme.text },
     importanceBtnText: { color: theme.text },
     emptyText: { color: theme.textMuted },
@@ -621,13 +650,14 @@ function getThemedStyles(theme) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
   },
   header: {
     paddingTop: 60,
     paddingHorizontal: 24,
     paddingBottom: 20,
-    backgroundColor: '#16213e',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 24,
   },
   headerTop: {
     flexDirection: 'row',
@@ -643,6 +673,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -660,12 +691,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  tabActive: {
-    backgroundColor: 'rgba(233, 69, 96, 0.2)',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    borderWidth: 1,
   },
   tabText: {
     fontSize: 15,
@@ -683,9 +712,18 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#7BAFD4',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+      },
+      android: { elevation: 8 },
+    }),
   },
   addTaskScreen: {
     flex: 1,
@@ -712,7 +750,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   addTaskInput: {
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
@@ -723,7 +762,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     marginBottom: 20,
   },
   dateTimeText: {
@@ -737,7 +777,8 @@ const styles = StyleSheet.create({
   addTaskCancelBtn: {
     flex: 1,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
   },
   addTaskCancelText: {
@@ -747,14 +788,13 @@ const styles = StyleSheet.create({
   addTaskSaveBtn: {
     flex: 1,
     padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#7BAFD4',
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
   },
   addTaskSaveText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
   },
   inputRow: {
     flexDirection: 'row',
@@ -776,28 +816,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   importanceBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    opacity: 0.7,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   importanceBtnSelected: {
-    opacity: 1,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: 'rgba(255,255,255,0.9)',
   },
   importanceBtnText: {
     fontSize: 13,
     fontWeight: '600',
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#fff',
   },
   addBtn: {
     width: 52,
@@ -807,12 +837,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addBtnDisabled: {
-    backgroundColor: '#4a4a6a',
-    opacity: 0.6,
-  },
   list: {
     flex: 1,
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -820,17 +847,26 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   listContent: {
-    padding: 16,
+    padding: 20,
     paddingBottom: 40,
   },
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
-    marginBottom: 10,
+    marginBottom: 12,
     borderLeftWidth: 4,
+    borderWidth: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: { elevation: 4 },
+    }),
   },
   taskRowDone: {
     opacity: 0.7,
@@ -838,9 +874,8 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#a2d2ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -902,11 +937,21 @@ const styles = StyleSheet.create({
   deletedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16213e',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
-    marginBottom: 10,
+    marginBottom: 12,
     borderLeftWidth: 4,
+    borderWidth: 1,
+    opacity: 0.85,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: { elevation: 2 },
+    }),
   },
   deletedText: {
     fontSize: 16,
